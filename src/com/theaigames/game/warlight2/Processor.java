@@ -17,8 +17,12 @@
 
 package com.theaigames.game.warlight2;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.LinkedList;
+
+import java.io.PrintWriter;
+import java.io.File;
 
 import com.theaigames.game.warlight2.map.Map;
 import com.theaigames.game.warlight2.map.Region;
@@ -54,8 +58,13 @@ public class Processor {
 	private final double LUCK_MODIFIER = 0.16;
 	private final int MINIMAL_STARTING_PICKS = 6;
 
+	private final String exportPath = "out";
+
 	public Processor(Map initMap, Player player1, Player player2)
 	{
+		File dir = new File(exportPath);
+		for(File file: dir.listFiles()) file.delete();
+
 		this.map = initMap;
 		this.player1 = player1;
 		this.player2 = player2;
@@ -219,7 +228,79 @@ public class Processor {
 		fullPlayedGame.add(null); //indicates round end	
 		player1PlayedGame.add(null);
 		player2PlayedGame.add(null);
+
+		printRound();
+
 		roundNr++;	
+	}
+
+	/**
+	 * Prints the current Round to a graphviz file.
+	 */
+	public void printRound()
+	{
+		LinkedList<Region> regions = map.getRegions();
+
+		String filename = exportPath + "/round-" + Integer.toString(this.roundNr) + ".gv";
+
+		File file = new File(filename);
+		file.getParentFile().mkdirs();
+
+		try {
+
+			PrintWriter writer = new PrintWriter(file);
+			writer.println("graph game {");
+
+			/*
+			for(SuperRegion sRegion : map.getSuperRegions())
+			{
+				writer.println("subgraph {");
+				for(Region region : sRegion.getSubRegions())
+				{
+					writer.write(Integer.toString(region.getId()) + "[label=\"" + Integer.toString(region.getId()) + " - " + Integer.toString(region.getArmies()) +  "\"];");
+				}
+				writer.println("label = \"SuperRegion " + sRegion.getId() + "\";");
+				writer.println("}");
+			}
+			*/
+
+			LinkedList<Region> p1Regions = map.ownedRegionsByPlayer(player1);
+			LinkedList<Region> p2Regions = map.ownedRegionsByPlayer(player2);
+			String player1RegionNodes = "node [shape=box, color=salmon2];";
+			for(Region region : p1Regions)
+			{
+				player1RegionNodes += Integer.toString(region.getId()) + "[label=\"" + Integer.toString(region.getId()) + " - " + Integer.toString(region.getArmies()) +  "\"];";
+			}
+			String player2RegionNodes = "node [shape=circle, color=deepskyblue];";
+			for(Region region : p2Regions)
+			{
+				player2RegionNodes += Integer.toString(region.getId()) + "[label=\"" + Integer.toString(region.getId()) + " - " + Integer.toString(region.getArmies()) +  "\"];";
+			}
+
+			writer.println(player1RegionNodes);
+			writer.println(player2RegionNodes);
+
+			writer.println("node [shape=diamond, color=grey];");
+
+			for(Region region : regions)
+			{
+				for(Region neighbor : region.getNeighbors())
+				{
+					if(region.getId() < neighbor.getId())
+					{
+						writer.println(Integer.toString(region.getId()) + " -- " + Integer.toString(neighbor.getId()) + ";");
+					}
+				}
+			}
+
+			writer.println("}");
+			writer.close();
+
+		}
+		catch (FileNotFoundException ex)
+		{
+			ex.printStackTrace();
+		}
 	}
 	
 	/**
